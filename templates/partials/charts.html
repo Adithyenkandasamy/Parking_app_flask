@@ -1,0 +1,124 @@
+<!-- Parking Statistics Charts -->
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Hourly Usage</h5>
+        <canvas id="hourlyUsageChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Top Parking Lots</h5>
+        <canvas id="topLotsChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Usage Over Time</h5>
+        <canvas id="usageTimelineChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Fetch statistics
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            // Hourly Usage Chart
+            new Chart(document.getElementById('hourlyUsageChart'), {
+                type: 'bar',
+                data: {
+                    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                    datasets: [{
+                        label: 'Bookings',
+                        data: Object.values(data.usage_by_hour),
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Top Lots Chart
+            const topLots = data.top_lots
+                .sort((a, b) => b.bookings - a.bookings)
+                .slice(0, 5);
+            
+            new Chart(document.getElementById('topLotsChart'), {
+                type: 'pie',
+                data: {
+                    labels: topLots.map(lot => lot.lot.name),
+                    datasets: [{
+                        data: topLots.map(lot => lot.bookings),
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)',
+                            'rgba(75, 192, 192, 0.5)',
+                            'rgba(153, 102, 255, 0.5)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+
+            // Usage Timeline Chart
+            fetch('/api/history')
+                .then(response => response.json())
+                .then(history => {
+                    const timelineData = history.reduce((acc, res) => {
+                        const date = new Date(res.parked_at).toLocaleDateString();
+                        acc[date] = (acc[date] || 0) + 1;
+                        return acc;
+                    }, {});
+
+                    new Chart(document.getElementById('usageTimelineChart'), {
+                        type: 'line',
+                        data: {
+                            labels: Object.keys(timelineData),
+                            datasets: [{
+                                label: 'Daily Bookings',
+                                data: Object.values(timelineData),
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                });
+        });
+});
+</script>

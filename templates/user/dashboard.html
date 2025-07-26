@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}My Dashboard{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <h2 class="mb-4">My Dashboard</h2>
+      
+      {% if active_reservation %}
+      <div class="card mb-4">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h4 class="mb-1">Current Booking</h4>
+              <p class="mb-0">
+                <strong>{{ active_reservation.spot.lot.name }}</strong> - Spot #{{ active_reservation.spot.id }}
+              </p>
+              <p class="mb-0 text-muted">
+                Booked at: {{ active_reservation.parked_at.strftime('%Y-%m-%d %H:%M') }}
+              </p>
+            </div>
+            <a href="{{ url_for('user.release_parking', reservation_id=active_reservation.id) }}" 
+               class="btn btn-danger">
+              <i class="bi bi-door-closed"></i> Release Spot
+            </a>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="alert alert-info mb-4">
+        <i class="bi bi-info-circle"></i> No active booking
+      </div>
+      {% endif %}
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <h3 class="card-title mb-4">Available Parking Lots</h3>
+          
+          {% if lots %}
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead class="table-dark">
+                <tr>
+                  <th>Lot Name</th>
+                  <th>Address</th>
+                  <th>Price/hr</th>
+                  <th>Available Spots</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for lot in lots %}
+                <tr>
+                  <td>{{ lot.name }}</td>
+                  <td>{{ lot.address }}</td>
+                  <td>₹{{ "%.2f"|format(lot.price_per_hour) }}/hr</td>
+                  <td>
+                    <span class="badge bg-success">
+                      {{ lot.spots|selectattr('status','equalto','A')|list|length }}
+                    </span>
+                  </td>
+                  <td>
+                    <a href="{{ url_for('user.book_parking', lot_id=lot.id) }}" 
+                       class="btn btn-sm btn-success">
+                      <i class="bi bi-geo-alt"></i> Book Parking
+                    </a>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="5" class="text-center py-4">
+                    <div class="text-muted">
+                      <i class="bi bi-building"></i>
+                      <p class="mb-0">No parking lots available</p>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="text-center py-4">
+            <i class="bi bi-building"></i>
+            <p class="mb-0 text-muted">No parking lots available</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <h3 class="card-title mb-4">Parking History</h3>
+          
+          {% if history %}
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead class="table-dark">
+                <tr>
+                  <th>Lot Name</th>
+                  <th>Spot #</th>
+                  <th>Booked At</th>
+                  <th>Released At</th>
+                  <th>Duration</th>
+                  <th>Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for res in history %}
+                <tr>
+                  <td>{{ res.spot.lot.name }}</td>
+                  <td>#{{ res.spot.id }}</td>
+                  <td>{{ res.parked_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                  <td>
+                    {% if res.left_at %}
+                    {{ res.left_at.strftime('%Y-%m-%d %H:%M') }}
+                    {% else %}
+                    <span class="text-warning">Active</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if res.left_at %}
+                    {{ "%.2f"|format((res.left_at - res.parked_at).total_seconds() / 3600) }} hours
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if res.left_at %}
+                    ₹{{ "%.2f"|format((res.left_at - res.parked_at).total_seconds() / 3600 * res.spot.lot.price_per_hour) }}
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="6" class="text-center py-4">
+                    <div class="text-muted">
+                      <i class="bi bi-clock-history"></i>
+                      <p class="mb-0">No parking history yet</p>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="text-center py-4">
+            <i class="bi bi-clock-history"></i>
+            <p class="mb-0 text-muted">No parking history yet</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

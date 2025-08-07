@@ -19,7 +19,7 @@
                 Booked at: {{ active_reservation.parked_at.strftime('%Y-%m-%d %H:%M') }}
               </p>
             </div>
-            <a href="{{ url_for('user.release_parking', reservation_id=active_reservation.id) }}" 
+            <a href="{{ url_for('release_parking', reservation_id=active_reservation.id) }}" 
                class="btn btn-danger">
               <i class="bi bi-door-closed"></i> Release Spot
             </a>
@@ -60,7 +60,7 @@
                     </span>
                   </td>
                   <td>
-                    <a href="{{ url_for('user.book_parking', lot_id=lot.id) }}" 
+                    <a href="{{ url_for('book_parking', lot_id=lot.id) }}" 
                        class="btn btn-sm btn-success">
                       <i class="bi bi-geo-alt"></i> Book Parking
                     </a>

@@ -8,7 +8,7 @@
       
       <div class="card">
         <div class="card-body">
-          <form method="POST" action="{{ url_for('admin.add_parking_lot') }}">
+          <form method="POST" action="{{ url_for('admin_add_parking_lot') }}">
             <div class="row">
               <div class="col-md-6">
                 <div class="mb-3">
@@ -49,7 +49,7 @@
             </div>
 
             <div class="d-flex justify-content-end">
-              <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary me-2">Cancel</a>
+              <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary me-2">Cancel</a>
               <button type="submit" class="btn btn-primary">Save Parking Lot</button>
             </div>
           </form>

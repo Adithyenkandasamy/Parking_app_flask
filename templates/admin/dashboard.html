@@ -5,9 +5,57 @@
   <div class="row">
     <div class="col-12">
       <h2 class="mb-4">Admin Dashboard</h2>
-      <div class="d-flex justify-content-between align-items-center mb-4">
+      <!-- Summary statistics -->
+  <div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card text-bg-primary h-100 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="card-title mb-2">Total Lots</h6>
+          <p class="fs-4 fw-bold mb-0">{{ total_lots }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card text-bg-success h-100 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="card-title mb-2">Total Spots</h6>
+          <p class="fs-4 fw-bold mb-0">{{ total_spots }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card text-bg-warning h-100 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="card-title mb-2">Occupied Spots</h6>
+          <p class="fs-4 fw-bold mb-0">{{ occupied_spots }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card text-bg-info h-100 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="card-title mb-2">Available Spots</h6>
+          <p class="fs-4 fw-bold mb-0">{{ available_spots }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Occupancy Pie Chart -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="card h-100 shadow-sm">
+        <div class="card-header bg-light fw-semibold">Overall Occupancy</div>
+        <div class="card-body">
+          <canvas id="occupancyChart" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="mb-0">Parking Lots</h3>
-        <a href="{{ url_for('admin.add_parking_lot') }}" class="btn btn-primary">
+        <a href="{{ url_for('admin_add_parking_lot') }}" class="btn btn-primary">
           <i class="bi bi-plus-circle"></i> Add Parking Lot
         </a>
       </div>
@@ -62,5 +110,26 @@
       </div>
     </div>
   </div>
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  const ctx = document.getElementById('occupancyChart');
+  if (ctx) {
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Occupied', 'Available'],
+        datasets: [{
+          data: [{{ occupied_spots }}, {{ available_spots }}],
+          backgroundColor: ['#ffc107', '#0d6efd'],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+  }
+</script>
 </div>
 {% endblock %}

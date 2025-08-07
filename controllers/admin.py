@@ -13,9 +13,23 @@ bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 @bp.route("/")
 def dashboard():
-    """Admin dashboard showing all parking lots."""
+    """Admin dashboard showing all parking lots with statistics."""
     lots = ParkingLot.query.all()
-    return render_template("admin/dashboard.html", lots=lots)
+
+    # Statistics for dashboard cards and charts
+    total_lots = ParkingLot.query.count()
+    total_spots = ParkingSpot.query.count()
+    occupied_spots = ParkingSpot.query.filter_by(status="O").count()
+    available_spots = total_spots - occupied_spots
+
+    return render_template(
+        "admin/dashboard.html",
+        lots=lots,
+        total_lots=total_lots,
+        total_spots=total_spots,
+        occupied_spots=occupied_spots,
+        available_spots=available_spots,
+    )
 
 
 @bp.route("/add", methods=["GET", "POST"], endpoint="add_parking_lot")

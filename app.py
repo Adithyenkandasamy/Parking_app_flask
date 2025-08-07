@@ -22,6 +22,7 @@ from flask import (
 )
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
+from typing import Optional
 import click
 
 # ----------------------------------------------------------------------------
@@ -180,7 +181,22 @@ def admin_dashboard():
         flash("Unauthorized", "danger")
         return redirect(url_for("index"))
     lots = ParkingLot.query.all()
-    return render_template("admin/dashboard.html", user=user, lots=lots)
+
+    # statistics for cards and chart
+    total_lots = ParkingLot.query.count()
+    total_spots = ParkingSpot.query.count()
+    occupied_spots = ParkingSpot.query.filter_by(status="O").count()
+    available_spots = total_spots - occupied_spots
+
+    return render_template(
+        "admin/dashboard.html",
+        user=user,
+        lots=lots,
+        total_lots=total_lots,
+        total_spots=total_spots,
+        occupied_spots=occupied_spots,
+        available_spots=available_spots,
+    )
 
 
 @app.route("/user")
@@ -189,9 +205,126 @@ def user_dashboard():
     if not user or user.is_admin:
         flash("Unauthorized", "danger")
         return redirect(url_for("index"))
-    reservations = Reservation.query.filter_by(user_id=user.id).all()
-    return render_template("user/dashboard.html", user=user, reservations=reservations)
+    # Data needed for dashboard
+    lots = ParkingLot.query.all()
 
+    active_reservation = Reservation.query.filter_by(
+        user_id=user.id,
+        left_at=None
+    ).first()
+
+    history = Reservation.query.filter_by(user_id=user.id).order_by(
+        Reservation.parked_at.desc()
+    ).all()
+
+    return render_template(
+        "user/dashboard.html",
+        user=user,
+        lots=lots,
+        active_reservation=active_reservation,
+        history=history,
+    )
+
+
+# -----------------------------------------------------------------------------
+# User booking & release routes
+# -----------------------------------------------------------------------------
+@app.route("/user/book/<int:lot_id>")
+def book_parking(lot_id: int):
+    """Book parking in a specific lot."""
+    user = _get_current_user()
+    if not user or user.is_admin:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("index"))
+
+    lot = ParkingLot.query.get_or_404(lot_id)
+
+    # If user already has active reservation
+    active_res = Reservation.query.filter_by(user_id=user.id, left_at=None).first()
+    if active_res:
+        flash("You already have an active reservation.", "warning")
+        return redirect(url_for("user_dashboard"))
+
+    # Find an available spot in the lot
+    spot = ParkingSpot.query.filter_by(lot_id=lot_id, status="A").first()
+    if not spot:
+        flash("No available spots in this lot", "danger")
+        return redirect(url_for("user_dashboard"))
+
+    try:
+        res = Reservation(spot_id=spot.id, user_id=user.id)
+        db.session.add(res)
+        spot.status = "O"
+        db.session.commit()
+        flash("Parking booked successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Failed to book parking: {e}", "danger")
+
+    return redirect(url_for("user_dashboard"))
+
+
+@app.route("/user/release/<int:reservation_id>")
+def release_parking(reservation_id: int):
+    """Release a parking spot and calculate cost."""
+    user = _get_current_user()
+    if not user or user.is_admin:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("index"))
+
+    try:
+        reservation = Reservation.query.filter_by(id=reservation_id, user_id=user.id, left_at=None).first_or_404()
+        duration = datetime.utcnow() - reservation.parked_at
+        hours = duration.total_seconds() / 3600
+        cost = round(hours * reservation.spot.lot.price_per_hour, 2)
+
+        reservation.left_at = datetime.utcnow()
+        reservation.spot.status = "A"
+        db.session.commit()
+        flash(f"Parking spot released successfully! Total cost: ₹{cost}", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Failed to release parking: {e}", "danger")
+
+    return redirect(url_for("user_dashboard"))
+
+
+
+@app.route("/admin/add", methods=["GET", "POST"])
+def admin_add_parking_lot():
+    """Add a new parking lot via admin interface."""
+    user = _get_current_user()
+    if not user or not user.is_admin:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        name = request.form.get("name")
+        address = request.form.get("address")
+        pincode = request.form.get("pincode")
+        price_per_hour = float(request.form.get("price_per_hour"))
+        max_spots = int(request.form.get("max_spots"))
+
+        lot = ParkingLot(
+            name=name,
+            address=address,
+            pincode=pincode,
+            price_per_hour=price_per_hour,
+            max_spots=max_spots,
+        )
+        db.session.add(lot)
+        db.session.commit()
+
+        # Create parking spots
+        for _ in range(max_spots):
+            spot = ParkingSpot(lot_id=lot.id)
+            db.session.add(spot)
+        db.session.commit()
+
+        flash("Parking lot created successfully!", "success")
+        return redirect(url_for("admin_dashboard"))
+
+    return render_template("admin/add_lot.html", user=user)
 
 # ----------------------------------------------------------------------------
 # Context & utilities

@@ -82,6 +82,14 @@ class ParkingSpot(db.Model):
     reservation = db.relationship("Reservation", back_populates="spot", uselist=False)
 
 
+class Waitlist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    lot_id = db.Column(db.Integer, db.ForeignKey("parking_lot.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    notified = db.Column(db.Boolean, default=False)
+
+
 class Reservation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     spot_id = db.Column(db.Integer, db.ForeignKey("parking_spot.id"), nullable=False)
@@ -198,6 +206,43 @@ def admin_dashboard():
         available_spots=available_spots,
     )
 
+# -----------------------------------------------------------------------------
+# Admin – user management
+# -----------------------------------------------------------------------------
+@app.route("/admin/users")
+def admin_list_users():
+    user = _get_current_user()
+    if not user or not user.is_admin:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("index"))
+
+    users = User.query.all()
+    return render_template("admin/users.html", user=user, users=users)
+
+
+@app.route("/admin/users/delete/<int:user_id>", methods=["POST"])
+def admin_delete_user(user_id: int):
+    user = _get_current_user()
+    if not user or not user.is_admin:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("index"))
+
+    target = User.query.get_or_404(user_id)
+    if target.is_admin:
+        flash("Cannot delete another admin user", "danger")
+        return redirect(url_for("admin_list_users"))
+
+    try:
+        Reservation.query.filter_by(user_id=user_id).delete()
+        db.session.delete(target)
+        db.session.commit()
+        flash("User deleted successfully", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("Failed to delete user: " + str(e), "danger")
+
+    return redirect(url_for("admin_list_users"))
+
 
 @app.route("/user")
 def user_dashboard():
@@ -261,6 +306,27 @@ def book_parking(lot_id: int):
         db.session.rollback()
         flash(f"Failed to book parking: {e}", "danger")
 
+    return redirect(url_for("user_dashboard"))
+
+
+@app.route("/user/waitlist/<int:lot_id>")
+def join_waitlist(lot_id: int):
+    """Add current user to waitlist for a lot if full."""
+    user = _get_current_user()
+    if not user or user.is_admin:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("index"))
+
+    # Already waitlisted?
+    existing = Waitlist.query.filter_by(lot_id=lot_id, user_id=user.id, notified=False).first()
+    if existing:
+        flash("You are already on the waitlist for this lot.", "info")
+        return redirect(url_for("user_dashboard"))
+
+    wl = Waitlist(lot_id=lot_id, user_id=user.id)
+    db.session.add(wl)
+    db.session.commit()
+    flash("You have been added to the waitlist. We will notify you when a spot opens up.", "success")
     return redirect(url_for("user_dashboard"))
 
 

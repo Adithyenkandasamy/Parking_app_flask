@@ -4,8 +4,27 @@
 <div class="container-fluid">
   <div class="row">
     <div class="col-12">
-      <h2 class="mb-4">My Dashboard</h2>
-      
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">My Dashboard</h2>
+        <div class="d-flex align-items-center gap-3">
+          <form method="POST" action="{{ url_for('upload_profile_image') }}" enctype="multipart/form-data" class="d-flex align-items-center">
+            <input type="file" name="image" accept="image/*" id="avatarInput" class="d-none" onchange="this.form.submit()">
+            <label for="avatarInput" class="btn btn-sm btn-outline-primary me-2"><i class="bi bi-camera"></i> Update</label>
+            <img src="{{ url_for('serve_profile_current') }}" alt="avatar" id="avatarImg"
+                 class="rounded-circle border" style="width:44px;height:44px;object-fit:cover;"
+                 onerror="this.onerror=null; this.src='https://via.placeholder.com/44?text=DP';">
+          </form>
+          <div class="btn-group" role="group" aria-label="View Switch">
+            <button type="button" class="btn btn-outline-secondary active" data-view="main" title="Main View">
+              <i class="bi bi-house"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" data-view="history" title="History">
+              <i class="bi bi-clock-history"></i>
+            </button>
+          </div>
+        </div>
+      </div> 
+      <div id="section-main">
       {% if active_reservation %}
       <div class="card mb-4">
         <div class="card-body">
@@ -51,19 +70,27 @@
               <tbody>
                 {% for lot in lots %}
                 <tr>
+                  {% set avail_count = lot.spots|selectattr('status','equalto','A')|list|length %}
                   <td>{{ lot.name }}</td>
                   <td>{{ lot.address }}</td>
                   <td>₹{{ "%.2f"|format(lot.price_per_hour) }}/hr</td>
                   <td>
-                    <span class="badge bg-success">
-                      {{ lot.spots|selectattr('status','equalto','A')|list|length }}
+                    <span class="badge {{ 'bg-success' if avail_count > 0 else 'bg-secondary' }}">
+                      {{ avail_count }}
                     </span>
                   </td>
                   <td>
-                    <a href="{{ url_for('book_parking', lot_id=lot.id) }}" 
-                       class="btn btn-sm btn-success">
-                      <i class="bi bi-geo-alt"></i> Book Parking
-                    </a>
+                    {% if avail_count > 0 %}
+                      <a href="{{ url_for('book_parking', lot_id=lot.id) }}" 
+                         class="btn btn-sm btn-success">
+                        <i class="bi bi-geo-alt"></i> Book Parking
+                      </a>
+                    {% else %}
+                      <a href="{{ url_for('join_waitlist', lot_id=lot.id) }}" 
+                         class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-bell"></i> Join Waitlist
+                      </a>
+                    {% endif %}
                   </td>
                 </tr>
                 {% else %}
@@ -88,7 +115,8 @@
         </div>
       </div>
 
-        <div class="tab-pane fade" id="history" role="tabpanel">
+      </div>
+        <div id="section-history" class="d-none">
       <div class="card">
         <div class="card-body">
           <h3 class="card-title mb-4">Parking History</h3>
@@ -154,4 +182,31 @@
     </div>
   </div>
 </div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const buttons = document.querySelectorAll('[data-view]');
+    const mainSection = document.getElementById('section-main');
+    const mainFallback = document.querySelector('#section-main') || document.querySelector('.container-fluid');
+    const histSection = document.getElementById('section-history');
+
+    function show(view) {
+      if (view === 'history') {
+        (mainSection || mainFallback).classList.add('d-none');
+        histSection.classList.remove('d-none');
+      } else {
+        histSection.classList.add('d-none');
+        (mainSection || mainFallback).classList.remove('d-none');
+      }
+    }
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const view = btn.getAttribute('data-view');
+        show(view);
+      });
+    });
+  });
+</script>
 {% endblock %}

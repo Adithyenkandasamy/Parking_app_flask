@@ -15,6 +15,7 @@ bp = Blueprint("admin", __name__, url_prefix="/admin")
 def dashboard():
     """Admin dashboard showing all parking lots with statistics."""
     lots = ParkingLot.query.all()
+    users = User.query.all()
 
     # Statistics for dashboard cards and charts
     total_lots = ParkingLot.query.count()
@@ -25,6 +26,7 @@ def dashboard():
     return render_template(
         "admin/dashboard.html",
         lots=lots,
+        users=users,
         total_lots=total_lots,
         total_spots=total_spots,
         occupied_spots=occupied_spots,

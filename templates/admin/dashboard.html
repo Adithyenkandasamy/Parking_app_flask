@@ -4,7 +4,17 @@
 <div class="container-fluid">
   <div class="row">
     <div class="col-12">
-      <h2 class="mb-4">Admin Dashboard</h2>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Admin Dashboard</h2>
+        <div class="btn-group" role="group" aria-label="Admin sections">
+          <button type="button" class="btn btn-outline-secondary active" data-admin-view="lots" title="Lots">
+            <i class="bi bi-ui-checks-grid"></i>
+          </button>
+          <button type="button" class="btn btn-outline-secondary" data-admin-view="users" title="Users">
+            <i class="bi bi-people"></i>
+          </button>
+        </div>
+      </div>
       <!-- Summary statistics -->
   <div class="row mb-4">
     <div class="col-md-3 col-sm-6 mb-3">
@@ -13,6 +23,67 @@
           <h6 class="card-title mb-2">Total Lots</h6>
           <p class="fs-4 fw-bold mb-0">{{ total_lots }}</p>
         </div>
+  </div>
+
+  <!-- Users Management Section -->
+  <div id="admin-section-users" class="d-none">
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="mb-0">Users</h3>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm d-none">Back</a>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead class="table-dark">
+                <tr>
+                  <th>ID</th>
+                  <th>Username</th>
+                  <th>Full Name</th>
+                  <th>Admin</th>
+                  <th>Reservations</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in users %}
+                <tr>
+                  <td>{{ u.id }}</td>
+                  <td>{{ u.username }}</td>
+                  <td>{{ u.full_name or '-' }}</td>
+                  <td>
+                    {% if u.is_admin %}
+                    <span class="badge bg-primary">Yes</span>
+                    {% else %}
+                    <span class="badge bg-secondary">No</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ u.reservations|length }}</td>
+                  <td>
+                    {% if not u.is_admin %}
+                    <form method="POST" action="{{ url_for('admin_delete_user', user_id=u.id) }}" style="display:inline;" onsubmit="return confirm('Delete this user?');">
+                      <button class="btn btn-sm btn-danger" type="submit">
+                        <i class="bi bi-trash"></i> Delete
+                      </button>
+                    </form>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-secondary" disabled>Admin</button>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="6" class="text-center py-4 text-muted">
+                    <i class="bi bi-people"></i> No users found
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+  </div>
       </div>
     </div>
     <div class="col-md-3 col-sm-6 mb-3">
@@ -53,9 +124,10 @@
     </div>
   </div>
 
-  <div class="d-flex justify-content-between align-items-center mb-4">
+  <div id="admin-section-lots">
+      <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="mb-0">Parking Lots</h3>
-        <a href="{{ url_for('admin_add_parking_lot') }}" class="btn btn-primary">
+        <a href="{{ url_for('admin.add_parking_lot') }}" class="btn btn-primary">
           <i class="bi bi-plus-circle"></i> Add Parking Lot
         </a>
       </div>
@@ -89,7 +161,11 @@
                   <td>
                     <div class="btn-group">
                       <button class="btn btn-sm btn-warning" disabled>Edit</button>
-                      <button class="btn btn-sm btn-danger" disabled>Delete</button>
+                      <form method="POST" action="{{ url_for('admin.delete_lot', lot_id=lot.id) }}" onsubmit="return confirm('Delete this lot and all its spots/reservations?');">
+                        <button class="btn btn-sm btn-danger" type="submit">
+                          <i class="bi bi-trash"></i> Delete
+                        </button>
+                      </form>
                     </div>
                   </td>
                 </tr>
@@ -132,4 +208,25 @@
   }
 </script>
 </div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const adminButtons = document.querySelectorAll('[data-admin-view]');
+    const lotsSection = document.getElementById('admin-section-lots');
+    const usersSection = document.getElementById('admin-section-users');
+    adminButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        adminButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const view = btn.getAttribute('data-admin-view');
+        if (view === 'users') {
+          lotsSection.classList.add('d-none');
+          usersSection.classList.remove('d-none');
+        } else {
+          usersSection.classList.add('d-none');
+          lotsSection.classList.remove('d-none');
+        }
+      });
+    });
+  });
+</script>
 {% endblock %}

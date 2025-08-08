@@ -19,10 +19,12 @@ from flask import (
     request,
     session,
     url_for,
+    send_from_directory,
 )
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
 from typing import Optional
+import glob
 import click
 
 # ----------------------------------------------------------------------------
@@ -36,6 +38,7 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///parking.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "uploads", "profile")
 
 db = SQLAlchemy(app)
 
@@ -122,6 +125,8 @@ def bootstrap_database() -> None:
             db.session.add(admin)
             db.session.commit()
             app.logger.info("Default admin created (username='admin', password='admin')")
+        # Ensure upload directory exists
+        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 
 # ----------------------------------------------------------------------------
@@ -391,6 +396,62 @@ def admin_add_parking_lot():
         return redirect(url_for("admin_dashboard"))
 
     return render_template("admin/add_lot.html", user=user)
+
+# -----------------------------------------------------------------------------
+# Profile image upload and serving
+# -----------------------------------------------------------------------------
+
+def _allowed_file(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in {"png", "jpg", "jpeg", "webp"}
+
+
+@app.route("/user/profile/upload", methods=["POST"])
+def upload_profile_image():
+    user_id = session.get("user_id")
+    if not user_id:
+        flash("Please log in first.", "warning")
+        return redirect(url_for("index"))
+
+    file = request.files.get("image")
+    if not file or file.filename == "":
+        flash("No file selected.", "danger")
+        return redirect(url_for("user_dashboard"))
+    if not _allowed_file(file.filename):
+        flash("Invalid file type. Allowed: png, jpg, jpeg, webp", "danger")
+        return redirect(url_for("user_dashboard"))
+
+    # Save using user_id with original extension
+    ext = file.filename.rsplit(".", 1)[1].lower()
+    filename = f"{user_id}.{ext}"
+    save_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    try:
+        file.save(save_path)
+        flash("Profile image updated.", "success")
+    except Exception as e:
+        app.logger.exception("Failed to save uploaded image: %s", e)
+        flash("Failed to upload image.", "danger")
+    return redirect(url_for("user_dashboard"))
+
+
+@app.route("/uploads/profile/<path:filename>")
+def serve_profile_image(filename: str):
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+
+@app.route("/user/profile/current")
+def serve_profile_current():
+    user_id = session.get("user_id")
+    if not user_id:
+        # No image for anonymous
+        return ("", 404)
+    # Find any file with user_id.* in UPLOAD_FOLDER
+    pattern = os.path.join(app.config["UPLOAD_FOLDER"], f"{user_id}.*")
+    matches = glob.glob(pattern)
+    if not matches:
+        return ("", 404)
+    # Serve the first match
+    fname = os.path.basename(matches[0])
+    return send_from_directory(app.config["UPLOAD_FOLDER"], fname)
 
 # ----------------------------------------------------------------------------
 # Context & utilities

@@ -16,105 +16,104 @@
         </div>
       </div>
       <!-- Summary statistics -->
-  <div class="row mb-4">
-    <div class="col-md-3 col-sm-6 mb-3">
-      <div class="card text-bg-primary h-100 shadow-sm">
-        <div class="card-body text-center">
-          <h6 class="card-title mb-2">Total Lots</h6>
-          <p class="fs-4 fw-bold mb-0">{{ total_lots }}</p>
-        </div>
-  </div>
-
-  <!-- Users Management Section -->
-  <div id="admin-section-users" class="d-none">
-      <div class="card">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="mb-0">Users</h3>
-            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm d-none">Back</a>
+      <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+          <div class="card text-bg-primary h-100 shadow-sm">
+            <div class="card-body text-center">
+              <h6 class="card-title mb-2">Total Lots</h6>
+              <p class="fs-4 fw-bold mb-0">{{ total_lots }}</p>
+            </div>
           </div>
-          <div class="table-responsive">
-            <table class="table table-hover">
-              <thead class="table-dark">
-                <tr>
-                  <th>ID</th>
-                  <th>Username</th>
-                  <th>Full Name</th>
-                  <th>Admin</th>
-                  <th>Reservations</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for u in users %}
-                <tr>
-                  <td>{{ u.id }}</td>
-                  <td>{{ u.username }}</td>
-                  <td>{{ u.full_name or '-' }}</td>
-                  <td>
-                    {% if u.is_admin %}
-                    <span class="badge bg-primary">Yes</span>
-                    {% else %}
-                    <span class="badge bg-secondary">No</span>
-                    {% endif %}
-                  </td>
-                  <td>{{ u.reservations|length }}</td>
-                  <td>
-                    {% if not u.is_admin %}
-                    <form method="POST" action="{{ url_for('admin_delete_user', user_id=u.id) }}" style="display:inline;" onsubmit="return confirm('Delete this user?');">
-                      <button class="btn btn-sm btn-danger" type="submit">
-                        <i class="bi bi-trash"></i> Delete
-                      </button>
-                    </form>
-                    {% else %}
-                    <button class="btn btn-sm btn-outline-secondary" disabled>Admin</button>
-                    {% endif %}
-                  </td>
-                </tr>
-                {% else %}
-                <tr>
-                  <td colspan="6" class="text-center py-4 text-muted">
-                    <i class="bi bi-people"></i> No users found
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+          <div class="card text-bg-success h-100 shadow-sm">
+            <div class="card-body text-center">
+              <h6 class="card-title mb-2">Total Spots</h6>
+              <p class="fs-4 fw-bold mb-0">{{ total_spots }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+          <div class="card text-bg-warning h-100 shadow-sm">
+            <div class="card-body text-center">
+              <h6 class="card-title mb-2">Occupied Spots</h6>
+              <p class="fs-4 fw-bold mb-0">{{ occupied_spots }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+          <div class="card text-bg-info h-100 shadow-sm">
+            <div class="card-body text-center">
+              <h6 class="card-title mb-2">Available Spots</h6>
+              <p class="fs-4 fw-bold mb-0">{{ available_spots }}</p>
+            </div>
           </div>
         </div>
       </div>
-  </div>
-      </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-      <div class="card text-bg-success h-100 shadow-sm">
-        <div class="card-body text-center">
-          <h6 class="card-title mb-2">Total Spots</h6>
-          <p class="fs-4 fw-bold mb-0">{{ total_spots }}</p>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-      <div class="card text-bg-warning h-100 shadow-sm">
-        <div class="card-body text-center">
-          <h6 class="card-title mb-2">Occupied Spots</h6>
-          <p class="fs-4 fw-bold mb-0">{{ occupied_spots }}</p>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-      <div class="card text-bg-info h-100 shadow-sm">
-        <div class="card-body text-center">
-          <h6 class="card-title mb-2">Available Spots</h6>
-          <p class="fs-4 fw-bold mb-0">{{ available_spots }}</p>
-        </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- Occupancy Pie Chart -->
+      <!-- Users Management Section -->
+      <div id="admin-section-users" class="d-none">
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h3 class="mb-0">Users</h3>
+              <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary btn-sm d-none">Back</a>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead class="table-dark">
+                  <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Full Name</th>
+                    <th>Admin</th>
+                    <th>Reservations</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for u in users %}
+                  <tr>
+                    <td>{{ u.id }}</td>
+                    <td>{{ u.username }}</td>
+                    <td>{{ u.full_name or '-' }}</td>
+                    <td>
+                      {% if u.is_admin %}
+                      <span class="badge bg-primary">Yes</span>
+                      {% else %}
+                      <span class="badge bg-secondary">No</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ u.reservations|length }}</td>
+                    <td>
+                      {% if not u.is_admin %}
+                      <form method="POST" action="{{ url_for('admin_delete_user', user_id=u.id) }}" style="display:inline;" onsubmit="return confirm('Delete this user?');">
+                        <button class="btn btn-sm btn-danger" type="submit">
+                          <i class="bi bi-trash"></i> Delete
+                        </button>
+                      </form>
+                      {% else %}
+                      <button class="btn btn-sm btn-outline-secondary" disabled>Admin</button>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% else %}
+                  <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                      <i class="bi bi-people"></i> No users found
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+  <!-- Occupancy & Stats Row -->
   <div class="row mb-4">
-    <div class="col-md-6">
+    <div class="col-lg-6 mb-3">
       <div class="card h-100 shadow-sm">
         <div class="card-header bg-light fw-semibold">Overall Occupancy</div>
         <div class="card-body">
@@ -122,17 +121,35 @@
         </div>
       </div>
     </div>
+    <div class="col-lg-6 mb-3">
+      <div class="card h-100 shadow-sm">
+        <div class="card-header bg-light fw-semibold d-flex align-items-center justify-content-between">
+          <span>Reservations per Lot</span>
+          <div class="d-flex align-items-center gap-2">
+            <label for="statsUserSelect" class="small text-muted mb-0">User</label>
+            <select id="statsUserSelect" class="form-select form-select-sm" style="min-width: 180px;">
+              <option value="">All Users</option>
+              {% for u in users %}
+              <option value="{{ u.id }}">{{ u.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="card-body">
+          <canvas id="reservationsBar" height="180"></canvas>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div id="admin-section-lots">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="mb-0">Parking Lots</h3>
-        <a href="{{ url_for('admin.add_parking_lot') }}" class="btn btn-primary">
-          <i class="bi bi-plus-circle"></i> Add Parking Lot
-        </a>
-      </div>
-
-      <div class="card">
+  <!-- Lots Table -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card h-100 shadow-sm">
+        <div class="card-header bg-light fw-semibold d-flex align-items-center justify-content-between">
+          <span>Lots</span>
+          <a href="{{ url_for('admin_add_parking_lot') }}" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle"></i> Add Parking Lot</a>
+        </div>
         <div class="card-body">
           <div class="table-responsive">
             <table class="table table-hover">
@@ -161,7 +178,7 @@
                   <td>
                     <div class="btn-group">
                       <button class="btn btn-sm btn-warning" disabled>Edit</button>
-                      <form method="POST" action="{{ url_for('admin.delete_lot', lot_id=lot.id) }}" onsubmit="return confirm('Delete this lot and all its spots/reservations?');">
+                      <form method="POST" action="{{ url_for('admin_delete_lot', lot_id=lot.id) }}" onsubmit="return confirm('Delete this lot and all its spots/reservations?');">
                         <button class="btn btn-sm btn-danger" type="submit">
                           <i class="bi bi-trash"></i> Delete
                         </button>
@@ -196,7 +213,7 @@
       data: {
         labels: ['Occupied', 'Available'],
         datasets: [{
-          data: [{{ occupied_spots }}, {{ available_spots }}],
+          data: [{{ occupied_spots|int }}, {{ available_spots|int }}],
           backgroundColor: ['#ffc107', '#0d6efd'],
           borderWidth: 1
         }]
@@ -204,6 +221,44 @@
       options: {
         plugins: { legend: { position: 'bottom' } }
       }
+    });
+  }
+
+  // Reservations per Lot Bar Chart
+  const barCanvas = document.getElementById('reservationsBar');
+  let barChart = null;
+  async function loadBarChart(userId) {
+    if (!barCanvas) return;
+    const url = userId ? `/api/stats/reservations?user_id=${userId}` : '/api/stats/reservations';
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const data = await res.json();
+    const labels = data.labels || [];
+    const counts = data.counts || [];
+    const ds = {
+      label: 'Reservations',
+      data: counts,
+      backgroundColor: '#0d6efd'
+    };
+    if (barChart) {
+      barChart.data.labels = labels;
+      barChart.data.datasets = [ds];
+      barChart.update();
+    } else {
+      barChart = new Chart(barCanvas, {
+        type: 'bar',
+        data: { labels, datasets: [ds] },
+        options: { scales: { y: { beginAtZero: true, precision: 0 } } }
+      });
+    }
+  }
+
+  // Initial load and user selector change
+  loadBarChart();
+  const userSelect = document.getElementById('statsUserSelect');
+  if (userSelect) {
+    userSelect.addEventListener('change', () => {
+      const uid = userSelect.value || '';
+      loadBarChart(uid);
     });
   }
 </script>

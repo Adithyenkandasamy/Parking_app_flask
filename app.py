@@ -1,10 +1,3 @@
-"""Entry point for Vehicle Parking App - V1.
-
-This file wires together Flask, SQLAlchemy and the initial blueprints / routes.
-Keeping everything in a single file for the very first skeleton keeps the
-project runnable with the least friction. As the feature-set grows we will
-split blueprints and controllers into the `controllers/` package.
-"""
 from __future__ import annotations
 
 import os
@@ -19,12 +12,10 @@ from flask import (
     request,
     session,
     url_for,
-    send_from_directory,
 )
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
 from typing import Optional
-import glob
 import click
 
 # ----------------------------------------------------------------------------
@@ -36,9 +27,8 @@ load_dotenv()
 app = Flask(__name__)
 # NOTE: Change this key in production
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///parking.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///parking.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "uploads", "profile")
 
 db = SQLAlchemy(app)
 
@@ -104,6 +94,15 @@ class Reservation(db.Model):
     user = db.relationship("User", back_populates="reservations")
 
 
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    lot_id = db.Column(db.Integer, db.ForeignKey("parking_lot.id"))
+    message = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    read = db.Column(db.Boolean, default=False)
+
+
 # ----------------------------------------------------------------------------
 # Helper utilities
 # ----------------------------------------------------------------------------
@@ -125,8 +124,7 @@ def bootstrap_database() -> None:
             db.session.add(admin)
             db.session.commit()
             app.logger.info("Default admin created (username='admin', password='admin')")
-        # Ensure upload directory exists
-        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+        # Nothing else
 
 
 # ----------------------------------------------------------------------------
@@ -194,6 +192,7 @@ def admin_dashboard():
         flash("Unauthorized", "danger")
         return redirect(url_for("index"))
     lots = ParkingLot.query.all()
+    users = User.query.all()
 
     # statistics for cards and chart
     total_lots = ParkingLot.query.count()
@@ -205,11 +204,37 @@ def admin_dashboard():
         "admin/dashboard.html",
         user=user,
         lots=lots,
+        users=users,
         total_lots=total_lots,
         total_spots=total_spots,
         occupied_spots=occupied_spots,
         available_spots=available_spots,
     )
+
+
+@app.route("/admin/lots/delete/<int:lot_id>", methods=["POST"])
+def admin_delete_lot(lot_id: int):
+    """Delete a parking lot, its spots, and related reservations (admin only)."""
+    user = _get_current_user()
+    if not user or not user.is_admin:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("index"))
+
+    lot = ParkingLot.query.get_or_404(lot_id)
+
+    # Delete reservations tied to spots in this lot
+    spot_ids = [s.id for s in ParkingSpot.query.filter_by(lot_id=lot.id).all()]
+    if spot_ids:
+        Reservation.query.filter(Reservation.spot_id.in_(spot_ids), Reservation.left_at.is_(None)).update({Reservation.left_at: datetime.utcnow()}, synchronize_session=False)
+        Reservation.query.filter(Reservation.spot_id.in_(spot_ids)).delete(synchronize_session=False)
+
+    # Delete spots, then the lot
+    ParkingSpot.query.filter_by(lot_id=lot.id).delete(synchronize_session=False)
+    db.session.delete(lot)
+    db.session.commit()
+
+    flash("Parking lot deleted.", "success")
+    return redirect(url_for("admin_dashboard"))
 
 # -----------------------------------------------------------------------------
 # Admin – user management
@@ -267,12 +292,15 @@ def user_dashboard():
         Reservation.parked_at.desc()
     ).all()
 
+    notifications = Notification.query.filter_by(user_id=user.id, read=False).order_by(Notification.created_at.desc()).all()
+
     return render_template(
         "user/dashboard.html",
         user=user,
         lots=lots,
         active_reservation=active_reservation,
         history=history,
+        notifications=notifications,
     )
 
 
@@ -352,6 +380,17 @@ def release_parking(reservation_id: int):
         reservation.left_at = datetime.utcnow()
         reservation.spot.status = "A"
         db.session.commit()
+
+        # Notify earliest waitlisted user for this lot, if any
+        lot_id = reservation.spot.lot_id
+        wl = Waitlist.query.filter_by(lot_id=lot_id, notified=False).order_by(Waitlist.created_at.asc()).first()
+        if wl:
+            msg = f"A spot is now available at {reservation.spot.lot.name}. Book soon!"
+            note = Notification(user_id=wl.user_id, lot_id=lot_id, message=msg)
+            wl.notified = True
+            db.session.add(note)
+            db.session.commit()
+
         flash(f"Parking spot released successfully! Total cost: ₹{cost}", "success")
     except Exception as e:
         db.session.rollback()
@@ -359,6 +398,20 @@ def release_parking(reservation_id: int):
 
     return redirect(url_for("user_dashboard"))
 
+
+@app.route("/user/notifications/read/<int:notif_id>", methods=["POST"])
+def mark_notification_read(notif_id: int):
+    user = _get_current_user()
+    if not user or user.is_admin:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("index"))
+    note = Notification.query.get_or_404(notif_id)
+    if note.user_id != user.id:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("user_dashboard"))
+    note.read = True
+    db.session.commit()
+    return redirect(url_for("user_dashboard"))
 
 
 @app.route("/admin/add", methods=["GET", "POST"])
@@ -398,60 +451,40 @@ def admin_add_parking_lot():
     return render_template("admin/add_lot.html", user=user)
 
 # -----------------------------------------------------------------------------
-# Profile image upload and serving
-# -----------------------------------------------------------------------------
+# Statistics API for scalable UI consumption
+@app.route("/api/stats/reservations")
+def api_reservation_stats():
+    """Return reservation counts per lot.
 
-def _allowed_file(filename: str) -> bool:
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in {"png", "jpg", "jpeg", "webp"}
+    Query params:
+      - user_id (optional): if provided, filter reservations for that user only.
+    Response format:
+      {
+        "labels": [lot names...],
+        "counts": [counts aligned to labels]
+      }
+    """
+    user_id = request.args.get("user_id", type=int)
 
+    # Build base query: join Reservation -> ParkingSpot -> ParkingLot
+    from sqlalchemy import func
 
-@app.route("/user/profile/upload", methods=["POST"])
-def upload_profile_image():
-    user_id = session.get("user_id")
-    if not user_id:
-        flash("Please log in first.", "warning")
-        return redirect(url_for("index"))
+    q = (
+        db.session.query(ParkingLot.name, func.count(Reservation.id))
+        .join(ParkingSpot, ParkingSpot.lot_id == ParkingLot.id)
+        .outerjoin(Reservation, Reservation.spot_id == ParkingSpot.id)
+    )
 
-    file = request.files.get("image")
-    if not file or file.filename == "":
-        flash("No file selected.", "danger")
-        return redirect(url_for("user_dashboard"))
-    if not _allowed_file(file.filename):
-        flash("Invalid file type. Allowed: png, jpg, jpeg, webp", "danger")
-        return redirect(url_for("user_dashboard"))
+    if user_id:
+        q = q.filter(Reservation.user_id == user_id)
 
-    # Save using user_id with original extension
-    ext = file.filename.rsplit(".", 1)[1].lower()
-    filename = f"{user_id}.{ext}"
-    save_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-    try:
-        file.save(save_path)
-        flash("Profile image updated.", "success")
-    except Exception as e:
-        app.logger.exception("Failed to save uploaded image: %s", e)
-        flash("Failed to upload image.", "danger")
-    return redirect(url_for("user_dashboard"))
+    q = q.group_by(ParkingLot.id).order_by(ParkingLot.name.asc())
 
+    rows = q.all()
+    labels = [r[0] for r in rows]
+    counts = [int(r[1] or 0) for r in rows]
 
-@app.route("/uploads/profile/<path:filename>")
-def serve_profile_image(filename: str):
-    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
-
-
-@app.route("/user/profile/current")
-def serve_profile_current():
-    user_id = session.get("user_id")
-    if not user_id:
-        # No image for anonymous
-        return ("", 404)
-    # Find any file with user_id.* in UPLOAD_FOLDER
-    pattern = os.path.join(app.config["UPLOAD_FOLDER"], f"{user_id}.*")
-    matches = glob.glob(pattern)
-    if not matches:
-        return ("", 404)
-    # Serve the first match
-    fname = os.path.basename(matches[0])
-    return send_from_directory(app.config["UPLOAD_FOLDER"], fname)
+    return {"labels": labels, "counts": counts}
 
 # ----------------------------------------------------------------------------
 # Context & utilities

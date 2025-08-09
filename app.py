@@ -200,11 +200,26 @@ def admin_dashboard():
     occupied_spots = ParkingSpot.query.filter_by(status="O").count()
     available_spots = total_spots - occupied_spots
 
+    # Build per-user lots used: dict[user_id] -> [distinct lot names]
+    # Single query to avoid N+1
+    rows = (
+        db.session.query(User.id, ParkingLot.name)
+        .join(Reservation, Reservation.user_id == User.id)
+        .join(ParkingSpot, Reservation.spot_id == ParkingSpot.id)
+        .join(ParkingLot, ParkingSpot.lot_id == ParkingLot.id)
+        .distinct()
+        .all()
+    )
+    user_lots = {}
+    for uid, lot_name in rows:
+        user_lots.setdefault(uid, []).append(lot_name)
+
     return render_template(
         "admin/dashboard.html",
         user=user,
         lots=lots,
         users=users,
+        user_lots=user_lots,
         total_lots=total_lots,
         total_spots=total_spots,
         occupied_spots=occupied_spots,

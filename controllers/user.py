@@ -57,11 +57,13 @@ def book_parking(lot_id: int):
         flash("You already have an active reservation.", "warning")
         return redirect(url_for("user.dashboard"))
 
-    # Find first available spot
-    available_spot = ParkingSpot.query.filter_by(
-        lot_id=lot_id,
-        status="A"
-    ).first()
+    # Find first available spot by ascending spot id (1,2,3...)
+    available_spot = (
+        ParkingSpot.query
+        .filter_by(lot_id=lot_id, status="A")
+        .order_by(ParkingSpot.id.asc())
+        .first()
+    )
 
     if not available_spot:
         flash("No spots available in this lot", "danger")

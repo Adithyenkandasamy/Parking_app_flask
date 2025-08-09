@@ -188,12 +188,29 @@
                   <td>{{ lot.max_spots }}</td>
                   <td>
                     <div class="btn-group">
-                      <button class="btn btn-sm btn-warning" disabled>Edit</button>
+                      <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#spots-{{ lot.id }}" aria-expanded="false" aria-controls="spots-{{ lot.id }}">
+                        View Spots
+                      </button>
                       <form method="POST" action="{{ url_for('admin_delete_lot', lot_id=lot.id) }}" onsubmit="return confirm('Delete this lot and all its spots/reservations?');">
                         <button class="btn btn-sm btn-danger" type="submit">
                           <i class="bi bi-trash"></i> Delete
                         </button>
                       </form>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="collapse" id="spots-{{ lot.id }}">
+                  <td colspan="6">
+                    <div class="d-flex flex-wrap gap-2">
+                      {% for s in lot.spots|sort(attribute='id') %}
+                        {% if s.status == 'A' %}
+                          <span class="badge bg-success">#{{ s.id }} Available</span>
+                        {% else %}
+                          <span class="badge bg-danger">#{{ s.id }} Booked</span>
+                        {% endif %}
+                      {% else %}
+                        <span class="text-muted">No spots created for this lot.</span>
+                      {% endfor %}
                     </div>
                   </td>
                 </tr>

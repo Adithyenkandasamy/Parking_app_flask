@@ -265,6 +265,29 @@ def admin_list_users():
     return render_template("admin/users.html", user=user, users=users)
 
 
+@app.route("/admin/users/<int:user_id>/history")
+def admin_user_history(user_id: int):
+    user = _get_current_user()
+    if not user or not user.is_admin:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("index"))
+
+    target = User.query.get_or_404(user_id)
+    history = (
+        Reservation.query
+        .filter_by(user_id=user_id)
+        .order_by(Reservation.parked_at.desc())
+        .all()
+    )
+
+    return render_template(
+        "admin/user_history.html",
+        user=user,
+        target=target,
+        history=history,
+    )
+
+
 @app.route("/admin/users/delete/<int:user_id>", methods=["POST"])
 def admin_delete_user(user_id: int):
     user = _get_current_user()

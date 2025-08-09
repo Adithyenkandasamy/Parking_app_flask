@@ -98,6 +98,9 @@
                     </td>
                     <td>
                       {% if not u.is_admin %}
+                      <a href="{{ url_for('admin_user_history', user_id=u.id) }}" class="btn btn-sm btn-outline-primary" style="margin-right:6px;">
+                        <i class="bi bi-clock-history"></i> History
+                      </a>
                       <form method="POST" action="{{ url_for('admin_delete_user', user_id=u.id) }}" style="display:inline;" onsubmit="return confirm('Delete this user?');">
                         <button class="btn btn-sm btn-danger" type="submit">
                           <i class="bi bi-trash"></i> Delete
